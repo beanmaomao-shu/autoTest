@@ -1,0 +1,126 @@
+# ================================================================
+# 页面地图知识库（page_map.yaml）
+# ----------------------------------------------------------------
+# 作用：沉淀「已探索过的页面、定位器、跳转路径、弹窗、坑点」，
+#       是 AI/开发者编写新用例时的第一手资料：
+#       - 大路径已入图 => 新用例只写尾部操作，零探索直接编码；
+#       - 只有出现图里没有的新页面/新控件时，才需要 ui_dump snap 增量探索，
+#         探索完把结果补录进本文件。
+# 维护约定：每次真机探索出新页面/弹窗/坑点后，同步更新本文件。
+# ================================================================
+
+app: com.hd.smartVillage          # 恒大智慧社区
+app_version: "3.8.1"
+updated: "2026-10-19"
+explore_tool: "python utils/ui_dump.py snap/show/diff/walk（walk 复用一个会话连续走查多屏、自动 diff，探索一次登录即可）"
+
+# ----------------------------------------------------------------
+# 全局弹窗清单（出现场景 + 关闭方式，遇到就按此处理）
+# ----------------------------------------------------------------
+dialogs:
+  - name: 通知权限
+    scene: 清数据后首启
+    dismiss: '//*[@text="不允许"]'
+  - name: 隐私协议
+    scene: 清数据后首启
+    dismiss: '//*[@text="同意"]'
+  - name: 温馨提示
+    scene: 清数据后首启
+    dismiss: '//*[@text="我知道了"]'
+  - name: 推送引导
+    scene: 清数据后首启（加载慢，可能等待数十秒才出现）
+    dismiss: '//android.view.View[@resource-id="com.hd.smartVillage:id/notificationSettingCloseBtn"]'
+  - name: 存储权限提示
+    scene: 清数据后首启
+    dismiss: '//android.widget.TextView[@resource-id="com.hd.smartVillage:id/bt_cancel"]'
+  - name: 位置权限系统提示
+    scene: 登录后点首页「请绑定房屋」入口时
+    dismiss: '//android.widget.TextView[@resource-id="com.hd.smartVillage:id/bt_cancel"]'   # 取消；bt_confirm=去设置
+    note: 点取消后城市显示「定位失败」，但不阻塞绑定表单的校验类操作
+  # 首启 5 弹窗顺序不固定；关闭按钮统一登记在 base/dialogs.py 的 KNOWN_DIALOGS 注册表（单一事实来源），
+  # LoginPage.dismiss_startup_dialogs() / BindHousePage.handle_location_dialog() 均委托 dismiss_known_dialogs() 处理；
+  # 新弹窗只需在 KNOWN_DIALOGS 加一行，所有调用方自动生效。
+  # 扫描期临时关隐式等待（在就点、不在秒过），首启弹窗链已从约 100 秒降到约 15 秒。
+
+# ----------------------------------------------------------------
+# 已探索页面（定位器与 PO 类保持同步，PO 是唯一定位器落地处）
+# ----------------------------------------------------------------
+pages:
+  home_logout:                    # 未登录首页
+    po: pages/login_page.py
+    key_controls:
+      court_name: '//android.widget.TextView[@resource-id="com.hd.smartVillage:id/court_name"]'   # 点击进登录页
+  login:                          # 密码登录页
+    po: pages/login_page.py
+    key_controls:
+      puc_btn_change: '//android.widget.TextView[@resource-id="com.hd.smartVillage:id/puc_btn_change"]'  # 切换密码登录
+      account_input: '//android.widget.EditText[@resource-id="com.hd.smartVillage:id/puc_text_input" and @hint="请输入手机号码"]'
+      password_input: '//android.widget.EditText[@resource-id="com.hd.smartVillage:id/puc_text_input" and @hint="请输入密码"]'
+      puc_ckb_agree: '//android.widget.CheckBox[@resource-id="com.hd.smartVillage:id/puc_ckb_agree"]'   # 必须勾选否则登录无响应
+      puc_btn_login: '//android.widget.Button[@resource-id="com.hd.smartVillage:id/puc_btn_login"]'     # 状态锚点：消失=登录成功
+    pitfalls:
+      - 账号/密码框共用 resource-id puc_text_input，必须用 hint 区分（账号预填导致 @text 不稳定）
+      - 冷启动首次点击登录可能被吞，wait_login_success 已内置补点重试
+  home_login:                     # 登录后首页（底部 tab：社区/生活/我的）
+    key_controls:
+      court_name: 同 home_logout   # 双重角色：登录后 text=「请绑定房屋」，点击进绑定表单页
+      house_name: '//android.widget.TextView[@resource-id="com.hd.smartVillage:id/house_name"]'      # text=「绑定后享受更多服务」
+      mine_tab: '//android.widget.TextView[@text="我的"]'
+  bind_house_form:                # 绑定房屋表单页（tv_title=「绑定房屋」）
+    po: pages/bind_house_page.py
+    key_controls:
+      submit: '//android.widget.TextView[@resource-id="com.hd.smartVillage:id/submit"]'              # 状态锚点：存在=停留绑定页
+      lt_city: '//android.widget.FrameLayout[@resource-id="com.hd.smartVillage:id/lt_city"]'
+      lt_court: '//android.widget.FrameLayout[@resource-id="com.hd.smartVillage:id/lt_court"]'
+      lt_house: '//android.widget.FrameLayout[@resource-id="com.hd.smartVillage:id/lt_house"]'
+      name_input: '//android.widget.EditText[@hint="请输入姓名"]'                                   # 无 resource-id，用 hint
+      mobile_value: mobile_number 容器内 hint=请输入手机号码 的 TextView（预填登录账号）
+    validation_rules:             # 真机实测的表单校验规则（数据驱动依据）
+      - 未选城市点小区 => Toast「请先选择城市」，停留表单页
+      - 未选小区点房号 => 静默拦截，停留表单页
+      - 只填姓名点绑定 => Toast「小区未填写」，停留表单页
+      - 默认值：类型=个人客户、身份=业主、手机号=登录账号
+    pitfalls:
+      - Toast 瞬态，点击后必须立即捕获（延迟 3 秒以上取 .text 会 StaleElementReferenceException）
+      - 真实绑定成功需物业登记数据且有账号状态副作用，自动化只覆盖校验规则
+  mine:                           # 「我的」tab 页
+    key_controls:
+      mine_house: '//android.widget.RelativeLayout[@resource-id="com.hd.smartVillage:id/mine_house"]'  # 我的房屋入口
+      puc_tv_name: 昵称（登录后显示 HD1931）
+  my_house_list:                  # 我的房屋列表页（tv_title=「我的房屋」）
+    key_controls:
+      house_list: RecyclerView     # 已绑定房屋列表
+      tvFailedTips: '//..[@text 含「暂无您的房屋信息」]'   # 空态提示
+      btn_house_bind: '//android.widget.Button[@resource-id="com.hd.smartVillage:id/btn_house_bind"]' # 另一个绑定入口（未下钻探索）
+
+# ----------------------------------------------------------------
+# 可复用大路径（新用例尾部不同时直接复用，无需重新探索）
+# ----------------------------------------------------------------
+paths:
+  - name: 到达未登录首页
+    steps: terminate -> clearApp -> activate -> dismiss_startup_dialogs()（委托 base.dialogs 注册表，扫描期关隐式等待）
+    fixture: clean_app（scripts/conftest.py）
+    cost: 约 15 秒（弹窗链提速后；原约 100 秒）
+  - name: 到达登录态首页
+    steps: 到达未登录首页 -> court_name -> puc_btn_change -> 输入账号密码 -> 勾协议 -> puc_btn_login -> wait_login_success
+    fixture: logged_in_app（模块级共享，只执行一次）+ relaunch_app（每条用例约 6 秒）
+    cost: 首次约 35 秒（弹窗链 15 秒 + 登录含补点约 20 秒；原约 130 秒），模块内后续用例约 6 秒
+  - name: 到达绑定房屋表单页
+    steps: 到达登录态首页 -> court_name（请绑定房屋）-> 位置弹窗点取消
+    code: BindHousePage.enter_bind_page()
+    cost: 约 10 秒
+  - name: 到达我的房屋列表页
+    steps: 到达登录态首页 -> 我的 tab -> mine_house
+    cost: 约 5 秒（btn_house_bind 之后的流程未探索）
+
+# ----------------------------------------------------------------
+# 环境备忘
+# ----------------------------------------------------------------
+environment:
+  appium_server: http://127.0.0.1:4723（Appium 3.8.0，base path /，URL 末尾不能带斜杠）
+  device: emulator-5554（config.yaml deviceName；本机可能同时在线 127.0.0.1:7555，注意区分）
+  known_issues:
+    - adb uiautomator dump 会被系统 Killed，控件树只能走 Appium page_source
+    - page_source 节点标签名是 class 全名（如 android.widget.EditText），没有 <node> 标签
+    - uiautomator2 服务偶发 socket hang up 假死：已在 config/setting.py 设 COMMAND_TIMEOUT=120 秒客户端命令超时，
+      假死时最多 2 分钟即报错（原会无限等待，实测挂 14 分钟）；挂起后 adb 健康检查再重跑，不要傻等

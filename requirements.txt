@@ -1,0 +1,16 @@
+# Appium official Python client - connect Appium Server to drive mobile devices
+Appium-Python-Client==3.2.1
+# Selenium - underlying dependency of Appium client, provides WebDriver protocol
+selenium==4.18.1
+# pytest - test framework: organize/run cases, parametrization, fixtures
+pytest==8.1.1
+# pytest-ordering - control the execution order of test cases
+pytest-ordering==0.6
+# pytest-rerunfailures - rerun failed cases to improve stability
+pytest-rerunfailures==14.0
+# pytest-xdist - run test cases in parallel
+pytest-xdist==3.5.0
+# allure-pytest - integrate pytest results with Allure visual report
+allure-pytest==2.13.5
+# PyYAML - read yaml config files and test data
+PyYAML==6.0.1

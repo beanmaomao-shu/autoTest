@@ -1,0 +1,35 @@
+# 绑定房屋业务测试数据
+# ------------------------------------------------
+# 说明：
+#   真实"绑定成功"需要填写物业服务中心登记过的姓名/身份信息，属于有业务
+#   副作用的操作（会改变账号状态、可能触发物业审核），无法在自动化中反复执行；
+#   因此数据驱动聚焦真机实测确认的表单校验规则（可稳定重复）：
+#     1. 未选城市点「小区」   -> Toast「请先选择城市」，停留绑定页；
+#     2. 未选小区点「房号」   -> 被拦截，停留绑定页；
+#     3. 表单不完整点「绑定」 -> 提交被拦截，停留绑定页。
+#
+#   字段说明：
+#     case_name:      用例名（参数化 id，显示在 Allure 报告中）
+#     action:         进入绑定页后执行的操作（city/court/house/submit）
+#     name:           姓名输入内容（空字符串表示不输入）
+#     expected_toast: 预期 Toast 文本（空字符串表示不校验 Toast）
+#     expected:       预期去向，"停留绑定页"
+
+bind_house_data:
+  - case_name: "未选城市点小区_Toast提示请先选择城市"
+    action: "court"
+    name: ""
+    expected_toast: "请先选择城市"
+    expected: "停留绑定页"
+
+  - case_name: "未选小区点房号_被拦截停留绑定页"
+    action: "house"
+    name: ""
+    expected_toast: ""
+    expected: "停留绑定页"
+
+  - case_name: "只填姓名提交_表单不完整停留绑定页"
+    action: "submit"
+    name: "测试用户"
+    expected_toast: ""
+    expected: "停留绑定页"
